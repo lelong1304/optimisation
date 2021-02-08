@@ -7,12 +7,11 @@ def rand_weights(n):
     k = numpy.random.rand(n)
     return k / sum(k)
 class asset():
-    def __init__(self, N, r, u, d, K, S0):
+    def __init__(self, N, r, u, d, S0):
         self.N = N
         self.r = r
         self.u = u
         self.d = d
-        self.K = K
         self.S0 = S0
         self.prices = []
 
@@ -30,20 +29,41 @@ class asset():
                 S[i,j] = self.S0 * pow(self.u,j) * pow(self.d,(i-j))
         self.prices = S
 
+def init_function():
+    c = numpy.zeros(1+n+S)
+    c[n] = 1
+    c[n+1:] = h
+
+    A_ub = numpy.zeros([S+1,S+n+1])
+    for element in uj:
+        A_ub[0,:n] = element *(-1)
+    for s in range(S):
+        A_ub[s+1, :n] = u[s,:]
+        A_ub[s+1, n] = -1
+        A_ub[s+1, n+s+1] = -1
+    b_ub = numpy.zeros(S+1)
+    b_ub[0] = R*(-1)
+
+    A_eq = numpy.zeros([1,S+n+1])
+    A_eq[0,:n] = 1
+    b_eq = [1]
+
+    return (c,A_eq,b_eq,A_ub,b_ub)
 
 assets = []
-S = 4
-assets.append(asset(S, 0.04, 1.0425, 0.9592, 98, 100))
-assets.append(asset(S, 0.04, 1.0325, 0.9685, 8, 100))
-assets.append(asset(S, 0.04, 1.0389, 0.9625, 8, 100))
-assets.append(asset(S, 0.04, 1.0752, 0.93, 8, 100))
+n = 4
+S = 4 #scenario
+assets.append(asset(N= S, r= 0.04, u=1.0425, d=0.9592, S0=100))
+assets.append(asset(N=S, r=0.04, u=1.0325, d=0.9685, S0=100))
+assets.append(asset(N=S, r=0.04, u=1.0389, d=0.9625, S0=100))
+assets.append(asset(N=S, r=0.04, u=1.0752, d=0.93, S0=100))
+
+uj = [0.11, 0.12, 0.15, 0.14]
+alpha = 0.95
+R = 0.14
+h = 1/((1-alpha)*S)
 number_assert = len(assets)
 
-n = 4
-#mu = numpy.random.random_sample((n,))
-mu = [0.11, 0.12, 0.15, 0.14]
-
-alpha = 0.95
 y = numpy.zeros([S,n])
 u = numpy.zeros([S,n])
 b = []
@@ -61,55 +81,22 @@ for s in range(S): # s scenario
         y[s,i] = sum_tmp/count
     u[s,:] = b-y[s,:]
 
-VaR = []
-CVaR = []
-ret = []
-for k in range(2000):
-    x = rand_weights(n)
-    #x = numpy.random.random_sample((n))
-    #x = x/numpy.sum(x)
-    loss = numpy.dot(u, x)
-
-    VaR.append(numpy.quantile(loss, alpha))
-    CVaR.append(numpy.mean(loss[loss>VaR[k]]))
-    ret.append(numpy.dot(mu,x))
-rng = numpy.random.RandomState(0)
-
-
-sizes = 2000 * rng.rand()
 
 
 
-R = 0.14
-h = 1/((1-alpha)*S)
+c , A_eq , b_eq, A_ub, b_ub, = init_function()
 
-c = numpy.zeros(1+n+S)
-#c[1]=1
-#for i in range(S):
-    #c[i+1]= h
-c[n] = 1
-c[n+1:] = h
-Aeq = numpy.zeros([1,S+n+1])
-Aeq[0,:n] = 1
-Beq = numpy.array([1])
+x = linprog.linprog(c = c, A_eq = A_eq, b_eq = b_eq, A_ub = A_ub, b_ub = b_ub)
 
-Aub = numpy.zeros([S+1,S+n+1])
-Aub[0,:n] = [-mui for mui in mu]
-for s in range(S):
-    Aub[s+1, :n] = u[s,:]
-    Aub[s+1, n] = -1
-    Aub[s+1, n+s+1] = -1
-
-bub = numpy.zeros(S+1)
-bub[0] = -R
-
-x = linprog.linprog(c = c, A_ub = Aub, b_ub = bub, A_eq = Aeq, b_eq = Beq)
-summ = sum(x.x[:n]);
 print("result :")
-print(summ)
-print("Portfolio structure:", x.x[:n])
+print("calcul price en periode de l'option 1 par example : ")
+print(assets[0].prices)
+print("calcul price en periode de l'option 2 par example : ")
+print(assets[1].prices)
+
 print("VaR: ", x.x[n])
 print("CVaR: ", x.fun)
-assets[1].calcul_price()
-print(assets[1].prices)
+print("Portfolio :", x.x[:n])
+
+
 
